@@ -15,12 +15,11 @@
 
 #define NUM_CHARS 2 //determines the number of characters for the lists: receivedCharArray,tempStorage, rowLetter, and illuminationCommand
 
-#define HAVE_LCD false
+//Uncomment this line to use the LCD code.
+//#define HAVE_LCD
 
 CRGB onColor = CRGB(30,30,30);
 CRGB offColor = CRGB::Black;
-CRGB testGreen = CRGB(0,10,0);
-CRGB testRed = CRGB(10,0,0);
 CRGB highlightColor = CRGB(10, 10, 0);
 
 int receivedByteArray[NUM_CHARS]; // Stores the byte input received from the user
@@ -30,12 +29,6 @@ int rowNumber;  //used to store the usable-index-number-value obtained with targ
 int columnNumber; //Stores a single number, that is later used to determine the target column that the user wants to light-up
 int illuminationCommand; //Stores a number, that is later used to determine whether the user wants to light-up a row, a column, or a single bulb
 
-//Used in setLED, defined globally to avoid GC
-int index = 0;
-
-//Debugging
-int loops = 0;
-
 CRGB leds[NUM_PIXELS];
 Adafruit_LiquidCrystal lcd(0);
 
@@ -44,23 +37,16 @@ void setup() {
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_PIXELS); 
   
   Serial.begin(38400);
-  /* Print instructions to serial port; useful for debugging or reminding users what the command format is */   
-//  Serial.println(F("Enter data the following format: <A,1,S,Barcode>"));
-//  Serial.println(F("First parameter is row letter, second parameter is column, third parameter is illumination command."));
-//  Serial.println(F("Valid row and columns are plate density dependent."));
-//  Serial.println(F("Valid illumination commands are: S - illuminate single well, R - illuminate entire row, C - illuminate entire column."));  
-//  Serial.println(); 
-
   
   illuminationTest();
 
-  if (HAVE_LCD){
-    // set up the LCD's number of rows and columns: 
-    // Print a message to the LCD.
-    lcd.begin(16, 2);  
-    lcd.print(F("Barcode:"));
-    lcd.setBacklight(HIGH);
-  }
+#ifdef HAVE_LCD
+  // set up the LCD's number of rows and columns: 
+  // Print a message to the LCD.
+  lcd.begin(16, 2);  
+  lcd.print(F("Barcode:"));
+  lcd.setBacklight(HIGH);
+#endif  
 }
 
 
@@ -71,12 +57,11 @@ void loop() {
   while (recvTwoByte()) {
     /* Parse the data received over the serial port into its constituent parts [row, column, illumination command] */ 
     parseTwoByte();
-    /* Return the parsed data back to the serial port - useful for debugging & confirmation to user */ 
-    displayParsedCommand();
     /* Execute the new command */ 
     parseIlluminationCommand(illuminationCommand);
-//    delay(100);
   }
+
+  updateDisplay();
 }
 
 bool recvTwoByte() {
@@ -98,46 +83,28 @@ void parseTwoByte() {
   rowNumber = receivedByteArray[1] & 15;
 }
 
-/* Displays the parsed information to the serial terminal; useful for debugging communication issues */ 
-void displayParsedCommand() {
-//    Serial.print(F("Column:"));
-//    Serial.print(columnNumber);
-//    Serial.print(F(", Row:"));
-//    Serial.print(rowLetter);
-//    Serial.print(F(", Command:"));
-//    Serial.println(illuminationCommand);
-//    if (HAVE_LCD){
-//      lcd.setCursor(0, 1);
-//      lcd.print(String(plateBarcode));
-//    }
-}
-
 /* Turns off all LEDs */ 
 void clearDisplay(){  
   FastLED.clear();
-  updateDisplay(false);
 } 
 
 /* Set all LEDs for a given row to a given color */ 
 void setRow(int row, CRGB color){  
   for (int column=0;column<NUM_COLUMNS;column++){
     setLED(row, column, color);
-  }           
-  updateDisplay(false);
+  }
 }
 
 /* Set all LEDs for a given column to a given color */ 
 void setColumn(int column, CRGB color){
   for(int row=0;row<NUM_ROWS;row++) {
     setLED(row, column, color);
-  }           
-  updateDisplay(false);
+  }
 }
 
 /* Sets an individual LED for a given row and column to a given color */ 
 void setWell(int row, int column, CRGB color){
   setLED(row, column, color);
-  updateDisplay(false);
 }
 
 void setWellFancy(int row, int column, CRGB wellColor, CRGB lineColor) {
@@ -149,7 +116,6 @@ void setWellFancy(int row, int column, CRGB wellColor, CRGB lineColor) {
 //    }
 //  }
   setLED(row, column, wellColor);
-  updateDisplay(false);
 }
 
 /* Determine which illumination command has been received and call the corresponding illumination function */ 
@@ -186,7 +152,7 @@ void parseIlluminationCommand(int illuminationCommand){
       break;
     /* Update display */
     case 7:
-      updateDisplay(true);
+      updateDisplay();
       break;
     default:
       Serial.println(F("ERROR Appropriate value not received."));
@@ -203,17 +169,14 @@ void parseIlluminationCommand(int illuminationCommand){
 void illuminationTest() {
   for(int x=0;x<NUM_PIXELS;x++) {
     leds[x] = onColor;
-//    delay(5);
-    updateDisplay(true);
+    updateDisplay();
   }
   clearDisplay();
 }
 
 /* Command for updating the display */ 
-void updateDisplay(bool force) {
-  if (force || !Serial.available()){
-    FastLED.show();
-  }
+void updateDisplay() {
+  FastLED.show();
 }
 
 /*Row is zero-indexed, column is zero-indexed*/
