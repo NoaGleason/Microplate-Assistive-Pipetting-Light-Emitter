@@ -18,11 +18,11 @@
 //Uncomment this line to use the LCD code.
 //#define HAVE_LCD
 
-CRGB onColor = CRGB(30,30,30);
+CRGB onColor = CRGB(5,5,3);
 CRGB offColor = CRGB::Black;
-CRGB highlightColor = CRGB(10, 10, 0);
+CRGB highlightColor = CRGB(2, 2, 0);
 
-int receivedByteArray[NUM_CHARS]; // Stores the byte input received from the user
+byte receivedByteArray[NUM_CHARS]; // Stores the byte input received from the user
 
 /* Components of command received over serial port - row, column and illumination command */ 
 int rowNumber;  //used to store the usable-index-number-value obtained with targetIndex, so that targetIndex can be reset to -1 so the convertRowLetterToNumber() keeps working
@@ -37,6 +37,7 @@ void setup() {
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_PIXELS); 
   
   Serial.begin(38400);
+  Serial.setTimeout(1000000);
   
   illuminationTest();
 
@@ -53,22 +54,27 @@ void setup() {
 void loop() {
 
   delay(100); // delay for 1/10 of a second
+  int count = 0;
     
   while (recvTwoByte()) {
     /* Parse the data received over the serial port into its constituent parts [row, column, illumination command] */ 
     parseTwoByte();
     /* Execute the new command */ 
     parseIlluminationCommand(illuminationCommand);
+    count++;
   }
 
+  leds[count] = CRGB::Red;
   updateDisplay();
 }
 
 bool recvTwoByte() {
   if (Serial.available() >= 2){
-    receivedByteArray[0] = Serial.read();
-    receivedByteArray[1] = Serial.read();
-    return true;
+    if(Serial.readBytes(receivedByteArray, NUM_CHARS)){
+      return true;
+    } else {
+      leds[11] = CRGB::Green;
+    }
   }
   return false;
 }
@@ -127,8 +133,8 @@ void parseIlluminationCommand(int illuminationCommand){
       break;
     /* Light up a single LED */ 
     case 1:
-      setWellFancy(rowNumber, columnNumber, onColor, highlightColor);
-//      setWell(rowNumber, columnNumber, onColor);
+//      setWellFancy(rowNumber, columnNumber, onColor, highlightColor);
+      setWell(rowNumber, columnNumber, onColor);
       break;
     /* Turn off a single LED */
     case 2:

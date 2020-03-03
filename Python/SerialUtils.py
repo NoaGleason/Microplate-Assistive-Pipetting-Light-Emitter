@@ -8,16 +8,21 @@ COMMAND_CODES = {"clear": 0x00, "well_on": 0x01, "well_off": 0x02, "column_on": 
 def write_or_print(bytestring: bytes, serial_connection: serial.Serial):
     if serial_connection:
         serial_connection.write(bytestring)
+        print("Sending bytestring {:08b} {:08b}".format(bytestring[0], bytestring[1]))
     else:
         print("Sending bytestring " + str(bytestring))
 
 
 def get_row_name_from_well(well: str):
+    if well is None:
+        return None
     row_name = well[0:1]  # for row
     return row_name
 
 
 def get_column_number_from_well(well: str):
+    if well is None:
+        return None
     column_number = well[1:3]
     return column_number
 
