@@ -22,10 +22,15 @@ with open("config.txt", "r") as file:
         print("Setting up panel on port " + COMPortOne)
     else:
         panel = serial.Serial(COMPortOne, baudrate=38400, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE)
+        print("Serial connected")
 
 
 def light_well(well_name):
     SerialUtils.send_serial_command(panel, "well_on", well_name=well_name)
+
+
+def update_panel():
+    SerialUtils.update_panels([panel])
 
 
 def clear_panel():
@@ -100,9 +105,6 @@ class SyrupGUI(Frame):
         master.focus_force()
 
     def next_plate(self):
-        # set the current row to have a grey background to indicate work on this record is complete
-        # self.pt.setRowColors(rows=self.currentPlatePosition, clr=self.done_color, cols='all')
-
         old_plate = self.compoundRequests[self.currentPlatePosition].location
         while self.currentPlatePosition < len(self.compoundRequests) - 1 and \
                 self.compoundRequests[self.currentPlatePosition].location.same_plate(old_plate):
@@ -129,10 +131,7 @@ class SyrupGUI(Frame):
                 self.compoundRequests.append(CompoundRequest(line.strip()))
 
         self.compoundRequests.sort(key=attrgetter('location'))
-        # csv_data = pd.read_csv(self.fileName, names=COLUMNS, header=0)
-        # self.pt = Table(self.center, dataframe=csv_data, showtoolbar=False, showstatusbar=False, height=450)
-        # self.pt.adjustColumnWidths(30)
-        # self.pt.show()
+
         for request in self.compoundRequests:
             self.compoundRequestIds[request] = self.tree.insert("", "end", values=request.get_row())
             # adjust column's width if necessary to fit each value
@@ -140,15 +139,9 @@ class SyrupGUI(Frame):
                 col_w = tkFont.Font().measure(str(val))
                 if self.tree.column(COLUMNS[ix], width=None) < col_w:
                     self.tree.column(COLUMNS[ix], width=col_w)
-
         self.parse_commands()
 
     def parse_commands(self):
-        # update the row currently highlighted in the pandastable
-        # self.pt.setSelectedRow(self.currentPlatePosition)
-        # pt.setRowColors(rows=self.currentCsvPosition, clr="#95D680", cols='all')
-        # self.pt.redraw()
-
         # get the current source and destination wells, then send them to the send_serial_command for LEDs to be lit
         clear_panel()
         index = 0
@@ -161,6 +154,7 @@ class SyrupGUI(Frame):
             index += 1
         self.tree.selection_set(selections)
         self.tree.yview_moveto((self.currentPlatePosition-1)/len(self.compoundRequests))
+        update_panel()
 
 
 if __name__ == '__main__':

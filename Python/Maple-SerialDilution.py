@@ -29,6 +29,10 @@ def send_serial_command(value, command):
         SerialUtils.send_serial_command(sourcePanelSerialConnection, command, row=value, column="1")
 
 
+def update_panel():
+    SerialUtils.update_panels([sourcePanelSerialConnection])
+
+
 def on_closing():
     SerialUtils.close_connection([sourcePanelSerialConnection])
     print("Closing serial ports!")
@@ -229,7 +233,7 @@ class LightPanelGUI(Frame):
                     send_serial_command(str(z), "column_off")
 
         # send the command to toggle LEDs on for previous LED instructions sent
-        # send_serial_command("1", "U")
+        update_panel()
 
 
 if __name__ == '__main__':

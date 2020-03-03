@@ -29,6 +29,8 @@ int rowNumber;  //used to store the usable-index-number-value obtained with targ
 int columnNumber; //Stores a single number, that is later used to determine the target column that the user wants to light-up
 int illuminationCommand; //Stores a number, that is later used to determine whether the user wants to light-up a row, a column, or a single bulb
 
+size_t bytesRead;
+
 CRGB leds[NUM_PIXELS];
 Adafruit_LiquidCrystal lcd(0);
 
@@ -36,10 +38,14 @@ void setup() {
   
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_PIXELS); 
   
-  Serial.begin(38400);
-  Serial.setTimeout(1000000);
+  Serial.begin(38400, SERIAL_8N1);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB
+  }
+  Serial.setTimeout(100);
   
   illuminationTest();
+  updateDisplay();
 
 #ifdef HAVE_LCD
   // set up the LCD's number of rows and columns: 
@@ -52,33 +58,15 @@ void setup() {
 
 
 void loop() {
-
-  delay(100); // delay for 1/10 of a second
-  int count = 0;
-    
-  while (recvTwoByte()) {
+  bytesRead = Serial.readBytes(receivedByteArray, NUM_CHARS);
+  if(bytesRead == NUM_CHARS){
     /* Parse the data received over the serial port into its constituent parts [row, column, illumination command] */ 
     parseTwoByte();
     /* Execute the new command */ 
     parseIlluminationCommand(illuminationCommand);
-    count++;
+    Serial.write(receivedByteArray, NUM_CHARS);
   }
-
-  leds[count] = CRGB::Red;
-  updateDisplay();
 }
-
-bool recvTwoByte() {
-  if (Serial.available() >= 2){
-    if(Serial.readBytes(receivedByteArray, NUM_CHARS)){
-      return true;
-    } else {
-      leds[11] = CRGB::Green;
-    }
-  }
-  return false;
-}
-
 
 void parseTwoByte() {
   //Most significant 7 bits are command

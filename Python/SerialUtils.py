@@ -8,7 +8,14 @@ COMMAND_CODES = {"clear": 0x00, "well_on": 0x01, "well_off": 0x02, "column_on": 
 def write_or_print(bytestring: bytes, serial_connection: serial.Serial):
     if serial_connection:
         serial_connection.write(bytestring)
-        print("Sending bytestring {:08b} {:08b}".format(bytestring[0], bytestring[1]))
+        print("Read start")
+        recv = serial_connection.read(2)
+        print("Read end")
+        if recv != bytestring:
+            print("ERROR!")
+            print("tx: {:08b} {:08b}".format(bytestring[0], bytestring[1]))
+            print("rx: {:08b} {:08b}".format(recv[0], recv[1]))
+            raise ConnectionError("Communication error between user and Arduino!")
     else:
         print("Sending bytestring " + str(bytestring))
 
@@ -53,8 +60,15 @@ def clear_panels(panels: List[serial.Serial]):
         write_or_print(serial_string, serial_connection)
 
 
+def update_panels(panels: List[serial.Serial]):
+    serial_string = make_bitstring("a", 1, "update")
+    for serial_connection in panels:
+        write_or_print(serial_string, serial_connection)
+
+
 def close_connection(panels: List[serial.Serial]):
     clear_panels(panels)
+    update_panels(panels)
     for serial_connection in panels:
         if serial_connection is not None:
             serial_connection.close()

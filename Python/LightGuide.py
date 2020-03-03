@@ -25,8 +25,12 @@ with open("config.txt", "r") as file:
         else:
             sourcePanelSerialConnection = serial.Serial(COMPortOne, '38400', parity=serial.PARITY_NONE,
                                                         stopbits=serial.STOPBITS_ONE)
-            destinationPanelSerialConnection = serial.Serial(COMPortTwo, '38400', parity=serial.PARITY_NONE,
-                                                             stopbits=serial.STOPBITS_ONE)
+            try:
+                destinationPanelSerialConnection = serial.Serial(COMPortTwo, '38400', parity=serial.PARITY_NONE,
+                                                                 stopbits=serial.STOPBITS_ONE)
+            except serial.serialutil.SerialException:
+                print("Destination serial connection failed, setting it up in dry run mode instead.")
+                destinationPanelSerialConnection = None
     else:
         print("Error reading serial ports config file.")
 
@@ -38,6 +42,10 @@ def send_serial_command(well_name, to_source):
 
 def clear_panels():
     SerialUtils.clear_panels([sourcePanelSerialConnection, destinationPanelSerialConnection])
+
+
+def update_panels():
+    SerialUtils.update_panels([sourcePanelSerialConnection, destinationPanelSerialConnection])
 
 
 def on_closing():
@@ -128,6 +136,7 @@ class LightPanelGUI(Frame):
         clear_panels()
         send_serial_command(source_well_name, True)
         send_serial_command(destination_well_name, False)
+        update_panels()
 
 
 if __name__ == '__main__':
