@@ -11,7 +11,7 @@ import SerialUtils
 from CompoundRequest import CompoundRequest
 
 DRY_RUN = False
-COLUMNS = ["Request_id", "Available", "Scripps Barcode", "State", "Volume", "Concentration", "Weight", "Solvation",
+COLUMNS = ["Request ID", "Available", "Scripps Barcode", "State", "Volume", "Concentration", "Weight", "Solvation",
            "Freezer", "Shelf", "Rack", "Section", "Subsection", "Plate Barcode", "Well"]
 
 with open("config.txt", "r") as file:
@@ -54,6 +54,8 @@ class SyrupGUI(Frame):
         self.compoundRequestIds = {}
 
         self.done_color = "#D3D3D3"
+        self.fail_color = "#FFAAAA"
+        self.search_color = "#FFFFFF"
 
         self.master = master
         self.master.title("SYRUP Beta Edition")
@@ -88,21 +90,25 @@ class SyrupGUI(Frame):
             self.tree.column(column, width=tkFont.Font().measure(column.title()))
 
         # create the widgets for the top frame
+        self.searchBar = Entry(top_frame, width="20", text="Barcode")
         self.backButton = Button(top_frame, text="Previous plate", command=self.previous_plate)
         self.nextButton = Button(top_frame, text="Next plate", command=self.next_plate)
 
         # layout the widgets in the top frame
         top_frame.grid_columnconfigure(2, weight=3)
+        self.searchBar.grid(row=0, column=1)
         self.backButton.grid(row=0, column=3)
         self.nextButton.grid(row=0, column=4)
         self.open_file()
 
         # create key shortcuts
-        master.bind("<Key>", lambda e: print("left pressed"))
-        master.bind("<Right>", lambda e: self.next_plate())
-        master.bind("<Up>", lambda e: self.previous_plate())
-        master.bind("<Down>", lambda e: self.next_plate())
-        master.focus_force()
+        self.searchBar.bind("<Return>", lambda e: self.goto_barcode())
+        self.tree.bind("<Left>", lambda e: self.previous_plate())
+        self.tree.bind("<Right>", lambda e: self.next_plate())
+        self.tree.bind("<Up>", lambda e: self.previous_plate())
+        self.tree.bind("<Down>", lambda e: self.next_plate())
+        self.tree.bind("<Button-1>", self.goto_selection)
+        self.tree.focus_force()
 
     def next_plate(self):
         old_plate = self.compoundRequests[self.currentPlatePosition].location
@@ -114,11 +120,34 @@ class SyrupGUI(Frame):
     def previous_plate(self):
         if self.currentPlatePosition > 0:
             self.currentPlatePosition -= 1
-            prev_plate = self.compoundRequests[self.currentPlatePosition].location
-            while self.currentPlatePosition > 0 and \
-                    self.compoundRequests[self.currentPlatePosition - 1].location.same_plate(prev_plate):
-                self.currentPlatePosition -= 1
+            self._seek_back_plate()
         self.parse_commands()
+
+    def goto_barcode(self):
+        barcode = self.searchBar.get()
+        # Fancy oneline to find the first element of the array that matches the condition, or self.currentPlatePosition
+        # if no match is found.
+        prev_plate_pos = self.currentPlatePosition
+        self.currentPlatePosition = next((i for i, v in enumerate(self.compoundRequests) if v.location.barcode ==
+                                          barcode), self.currentPlatePosition)
+        if self.currentPlatePosition == prev_plate_pos:
+            self.searchBar.config(bg=self.fail_color)
+        else:
+            self.searchBar.config(bg=self.search_color)
+            self.tree.focus_set()
+            self.parse_commands()
+
+    def goto_selection(self, e):
+        self.currentPlatePosition = self.tree.index(self.tree.identify("item", e.x, e.y))
+        self._seek_back_plate()
+        self.parse_commands(scroll=False)
+        return "break"
+
+    def _seek_back_plate(self):
+        plate = self.compoundRequests[self.currentPlatePosition].location
+        while self.currentPlatePosition > 0 and \
+                self.compoundRequests[self.currentPlatePosition - 1].location.same_plate(plate):
+            self.currentPlatePosition -= 1
 
     def open_file(self):
         self.fileName = askopenfilename()  # show an open file dialog box and return the path to the selected file
@@ -141,7 +170,7 @@ class SyrupGUI(Frame):
                     self.tree.column(COLUMNS[ix], width=col_w)
         self.parse_commands()
 
-    def parse_commands(self):
+    def parse_commands(self, scroll=True):
         # get the current source and destination wells, then send them to the send_serial_command for LEDs to be lit
         clear_panel()
         index = 0
@@ -153,7 +182,8 @@ class SyrupGUI(Frame):
             light_well(self.compoundRequests[self.currentPlatePosition + index].location.well)
             index += 1
         self.tree.selection_set(selections)
-        self.tree.yview_moveto((self.currentPlatePosition-1)/len(self.compoundRequests))
+        if scroll:
+            self.tree.yview_moveto((self.currentPlatePosition-1)/len(self.compoundRequests))
         update_panel()
 
 

@@ -8,9 +8,9 @@ COMMAND_CODES = {"clear": 0x00, "well_on": 0x01, "well_off": 0x02, "column_on": 
 def write_or_print(bytestring: bytes, serial_connection: serial.Serial):
     if serial_connection:
         serial_connection.write(bytestring)
-        print("Read start")
+        # print("Read start")
         recv = serial_connection.read(2)
-        print("Read end")
+        # print("Read end")
         if recv != bytestring:
             print("ERROR!")
             print("tx: {:08b} {:08b}".format(bytestring[0], bytestring[1]))
