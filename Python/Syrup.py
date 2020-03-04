@@ -10,7 +10,7 @@ import serial
 import SerialUtils
 from CompoundRequest import CompoundRequest
 
-DRY_RUN = False
+DRY_RUN = True
 COLUMNS = ["Request ID", "Available", "Scripps Barcode", "State", "Volume", "Concentration", "Weight", "Solvation",
            "Freezer", "Shelf", "Rack", "Section", "Subsection", "Plate Barcode", "Well"]
 
@@ -53,7 +53,7 @@ class SyrupGUI(Frame):
         self.compoundRequests = []
         self.compoundRequestIds = {}
 
-        self.done_color = "#D3D3D3"
+        self.done_color = "#C3C3C3"
         self.fail_color = "#FFAAAA"
         self.search_color = "#FFFFFF"
 
@@ -74,7 +74,24 @@ class SyrupGUI(Frame):
         center = Frame(self.master)
         center.grid(row=1, sticky="nsew")
 
-        self.tree = ttk.Treeview(columns=COLUMNS, show="headings")
+        # Weird workaround for https://core.tcl-lang.org/tk/tktview?name=509cafafae
+        style = ttk.Style()
+        style.theme_use("winnative")
+
+        def fixed_map(option):
+            # Returns the style map for 'option' with any styles starting with
+            # ("!disabled", "!selected", ...) filtered out
+
+            # style.map() returns an empty list for missing options, so this should
+            # be future-safe
+            return [elm for elm in style.map("Treeview", query_opt=option)
+                    if elm[:2] != ("!disabled", "!selected")]
+
+        style.map("Treeview",
+                  foreground=fixed_map("foreground"),
+                  background=fixed_map("background"))
+
+        self.tree = ttk.Treeview(columns=COLUMNS, show="headings", style="Treeview")
         vsb = ttk.Scrollbar(orient="vertical", command=self.tree.yview)
         hsb = ttk.Scrollbar(orient="horizontal", command=self.tree.xview)
         self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
@@ -88,6 +105,8 @@ class SyrupGUI(Frame):
         for column in COLUMNS:
             self.tree.heading(column, text=column.title())
             self.tree.column(column, width=tkFont.Font().measure(column.title()))
+
+        self.tree.tag_configure("done", background=self.done_color)
 
         # create the widgets for the top frame
         self.searchBar = Entry(top_frame, width="20", text="Barcode")
@@ -115,6 +134,7 @@ class SyrupGUI(Frame):
         old_plate = self.compoundRequests[self.currentPlatePosition].location
         while self.currentPlatePosition < len(self.compoundRequests) - 1 and \
                 self.compoundRequests[self.currentPlatePosition].location.same_plate(old_plate):
+            self.tree.item(self.compoundRequestIds[self.compoundRequests[self.currentPlatePosition]], tags=("done",))
             self.currentPlatePosition += 1
         self.parse_commands()
 
