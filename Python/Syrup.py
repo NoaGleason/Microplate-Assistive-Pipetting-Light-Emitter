@@ -1,18 +1,17 @@
 # TODO come up with a dumb backronym for SYRUP
-from operator import attrgetter
-from tkinter import *
 import tkinter.font as tkFont
 import tkinter.ttk as ttk
+from operator import attrgetter
+from tkinter import *
 from tkinter.filedialog import askopenfilename
-from sys import platform
-from ttkthemes import ThemedTk
 
 import serial
+from ttkthemes import ThemedTk
 
 import SerialUtils
 from CompoundRequest import CompoundRequest
 
-DRY_RUN = True
+DRY_RUN = False
 COLUMNS = ["Request ID", "Available", "Scripps Barcode", "State", "Volume", "Concentration", "Weight", "Solvation",
            "Freezer", "Shelf", "Rack", "Section", "Subsection", "Plate Barcode", "Well"]
 
@@ -56,11 +55,11 @@ class SyrupGUI(Frame):
         self.compoundRequestIds = {}
 
         self.done_color = "#C3C3C3"
-        self.fail_color = "#FFAAAA"
+        self.fail_color = "#FF8888"
         self.search_color = "#000000"
 
         self.master = master
-        self.master.title("SYRUP Beta Edition")
+        self.master.title("SYRUP v0.1")
         self.master.minsize(500, 500)
 
         # Set styles
@@ -104,7 +103,7 @@ class SyrupGUI(Frame):
         self.searchLabel = ttk.Label(top_frame, text="Search: ", takefocus=0)
         self.searchBar = ttk.Entry(top_frame, width="20", style="Search.TEntry")
         self.backButton = ttk.Button(top_frame, text="Previous plate", command=self.previous_plate, takefocus=0)
-        self.nextButton = ttk.Button(top_frame, text="Plate Complete", command=self.next_plate, takefocus=0)
+        self.nextButton = ttk.Button(top_frame, text="Plate complete", command=self.next_plate, takefocus=0)
 
         # layout the widgets in the top frame
         top_frame.grid_columnconfigure(2, weight=3)
@@ -198,7 +197,7 @@ class SyrupGUI(Frame):
             index += 1
         self.tree.selection_set(selections)
         if scroll:
-            self.tree.yview_moveto((self.currentPlatePosition-1)/len(self.compoundRequests))
+            self.tree.yview_moveto((self.currentPlatePosition - 1) / len(self.compoundRequests))
         update_panel()
 
 
@@ -207,4 +206,3 @@ if __name__ == '__main__':
     syrupGUIInstance = SyrupGUI(mainWindow)
     mainWindow.protocol("WM_DELETE_WINDOW", on_closing)
     mainWindow.mainloop()
-

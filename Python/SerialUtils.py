@@ -1,5 +1,6 @@
-import serial
 from typing import List
+
+import serial
 
 COMMAND_CODES = {"clear": 0x00, "well_on": 0x01, "well_off": 0x02, "column_on": 0x03, "column_off": 0x04,
                  "row_on": 0x05, "row_off": 0x06, "update": 0x07}
@@ -8,16 +9,14 @@ COMMAND_CODES = {"clear": 0x00, "well_on": 0x01, "well_off": 0x02, "column_on": 
 def write_or_print(bytestring: bytes, serial_connection: serial.Serial):
     if serial_connection:
         serial_connection.write(bytestring)
-        # print("Read start")
         recv = serial_connection.read(2)
-        # print("Read end")
         if recv != bytestring:
             print("ERROR!")
             print("tx: {:08b} {:08b}".format(bytestring[0], bytestring[1]))
             print("rx: {:08b} {:08b}".format(recv[0], recv[1]))
             raise ConnectionError("Communication error between user and Arduino!")
     else:
-        print("Sending bytestring " + str(bytestring))
+        print("Sending bytestring {:08b} {:08b}".format(bytestring[0], bytestring[1]))
 
 
 def get_row_name_from_well(well: str):

@@ -26,7 +26,7 @@ class CompoundRequest:
 
     def get_row(self):
         return self.request_id, self.available, self.barcode, self.state, self.volume, self.concentration, self.weight,\
-               self.solvation, self.location.freezer, self.location.shelf, self.location.rack, self.location.section,\
+               self.solvation, self.location.freezer, self.location.shelf, self.location.rack, self.location.section, \
                self.location.subsection, self.location.barcode, self.location.well
 
     def __hash__(self):
@@ -38,7 +38,7 @@ class Location:
 
     def __init__(self, loc_string: str):
         location_data = loc_string.split(":")
-        if len(location_data) == 3:             # e.g. CMG_pulled:MT999957:B04
+        if len(location_data) == 3:  # e.g. CMG_pulled:MT999957:B04
             self.freezer = location_data[0]
             self.shelf = None
             self.rack = None
@@ -46,7 +46,7 @@ class Location:
             self.subsection = None
             self.barcode = location_data[1]
             self.well = location_data[2]
-        elif len(location_data) == 5:           # e.g. R1:S1:REFRAME_0001:BOX5:D8
+        elif len(location_data) == 5:  # e.g. R1:S1:REFRAME_0001:BOX5:D8
             self.freezer = location_data[0]
             self.shelf = location_data[1]
             self.rack = location_data[2]
@@ -54,7 +54,7 @@ class Location:
             self.subsection = None
             self.barcode = None
             self.well = location_data[4]
-        elif len(location_data) == 6:           # e.g. F18:S5:CRACK_0578:E:MT100073:H02
+        elif len(location_data) == 6:  # e.g. F18:S5:CRACK_0578:E:MT100073:H02
             self.freezer = location_data[0]
             self.shelf = location_data[1]
             self.rack = location_data[2]
@@ -62,7 +62,7 @@ class Location:
             self.subsection = None
             self.barcode = location_data[4]
             self.well = location_data[5]
-        elif len(location_data) == 7:           # e.g. F100:S5:MRACK_0024:D1:A:MT001653:A032
+        elif len(location_data) == 7:  # e.g. F100:S5:MRACK_0024:D1:A:MT001653:A032
             self.freezer = location_data[0]
             self.shelf = location_data[1]
             self.rack = location_data[2]
