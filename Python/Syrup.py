@@ -103,6 +103,7 @@ class SyrupGUI(Frame):
 
         # create key shortcuts
         self.searchBar.bind("<Return>", lambda e: self.goto_barcode())
+        self.searchBar.bind("<Down>", lambda e: self.tree.focus_set())
         self.tree.bind("<Left>", lambda e: self.previous_plate())
         self.tree.bind("<Right>", lambda e: self.next_plate())
         self.tree.bind("<Up>", lambda e: self.previous_plate())

@@ -1,2 +1,2 @@
-COM4
+/dev/ttyACM0
 COM5
