@@ -5,6 +5,7 @@ import tkinter.font as tkFont
 import tkinter.ttk as ttk
 from tkinter.filedialog import askopenfilename
 from sys import platform
+from ttkthemes import ThemedTk
 
 import serial
 
@@ -56,15 +57,22 @@ class SyrupGUI(Frame):
 
         self.done_color = "#C3C3C3"
         self.fail_color = "#FFAAAA"
-        self.search_color = "#FFFFFF"
+        self.search_color = "#000000"
 
         self.master = master
         self.master.title("SYRUP Beta Edition")
-        # self.master.maxsize(500, 500)
         self.master.minsize(500, 500)
 
+        # Set styles
+        style = ttk.Style()
+
+        style.configure("TButton", padding=4)
+        style.configure("Search.TEntry", border=[6, 0, 6, 0], side="left")
+        style.configure("TFrame", border=[10, 10, 10, 10], padding=6)
+        style.configure("TLabel", padding=3)
+
         # create all of the main containers
-        top_frame = Frame(self.master, bg='grey', width=450, height=50, pady=3)
+        top_frame = ttk.Frame(self.master, padding=6)
 
         # layout all of the main containers
         self.master.grid_rowconfigure(1, weight=1)
@@ -72,26 +80,8 @@ class SyrupGUI(Frame):
         top_frame.grid(row=0, sticky="ew")
 
         # Create container for table
-        center = Frame(self.master)
+        center = ttk.Frame(self.master)
         center.grid(row=1, sticky="nsew")
-
-        # Weird workaround for https://core.tcl-lang.org/tk/tktview?name=509cafafae
-        style = ttk.Style()
-        if platform == "win32" or platform == "cygwin":
-            style.theme_use("winnative")
-
-        def fixed_map(option):
-            # Returns the style map for 'option' with any styles starting with
-            # ("!disabled", "!selected", ...) filtered out
-
-            # style.map() returns an empty list for missing options, so this should
-            # be future-safe
-            return [elm for elm in style.map("Treeview", query_opt=option)
-                    if elm[:2] != ("!disabled", "!selected")]
-
-        style.map("Treeview",
-                  foreground=fixed_map("foreground"),
-                  background=fixed_map("background"))
 
         self.tree = ttk.Treeview(columns=COLUMNS, show="headings", style="Treeview")
         vsb = ttk.Scrollbar(orient="vertical", command=self.tree.yview)
@@ -111,15 +101,17 @@ class SyrupGUI(Frame):
         self.tree.tag_configure("done", background=self.done_color)
 
         # create the widgets for the top frame
-        self.searchBar = Entry(top_frame, width="20", text="Barcode")
-        self.backButton = Button(top_frame, text="Previous plate", command=self.previous_plate)
-        self.nextButton = Button(top_frame, text="Next plate", command=self.next_plate)
+        self.searchLabel = ttk.Label(top_frame, text="Search: ", takefocus=0)
+        self.searchBar = ttk.Entry(top_frame, width="20", style="Search.TEntry")
+        self.backButton = ttk.Button(top_frame, text="Previous plate", command=self.previous_plate, takefocus=0)
+        self.nextButton = ttk.Button(top_frame, text="Plate Complete", command=self.next_plate, takefocus=0)
 
         # layout the widgets in the top frame
         top_frame.grid_columnconfigure(2, weight=3)
-        self.searchBar.grid(row=0, column=1)
-        self.backButton.grid(row=0, column=3)
-        self.nextButton.grid(row=0, column=4)
+        self.searchLabel.grid(row=0, column=1, sticky="e")
+        self.searchBar.grid(row=0, column=2, sticky="w")
+        self.backButton.grid(row=0, column=4)
+        self.nextButton.grid(row=0, column=5)
         self.open_file()
 
         # create key shortcuts
@@ -154,9 +146,9 @@ class SyrupGUI(Frame):
         self.currentPlatePosition = next((i for i, v in enumerate(self.compoundRequests) if v.location.barcode ==
                                           barcode), self.currentPlatePosition)
         if self.currentPlatePosition == prev_plate_pos:
-            self.searchBar.config(bg=self.fail_color)
+            ttk.Style().configure("Search.TEntry", foreground=self.fail_color)
         else:
-            self.searchBar.config(bg=self.search_color)
+            ttk.Style().configure("Search.TEntry", foreground=self.search_color)
             self.tree.focus_set()
             self.parse_commands()
 
@@ -211,7 +203,7 @@ class SyrupGUI(Frame):
 
 
 if __name__ == '__main__':
-    mainWindow = Tk()
+    mainWindow = ThemedTk(theme="arc")
     syrupGUIInstance = SyrupGUI(mainWindow)
     mainWindow.protocol("WM_DELETE_WINDOW", on_closing)
     mainWindow.mainloop()
