@@ -4,6 +4,7 @@ from tkinter import *
 import tkinter.font as tkFont
 import tkinter.ttk as ttk
 from tkinter.filedialog import askopenfilename
+from sys import platform
 
 import serial
 
@@ -76,7 +77,8 @@ class SyrupGUI(Frame):
 
         # Weird workaround for https://core.tcl-lang.org/tk/tktview?name=509cafafae
         style = ttk.Style()
-        style.theme_use("winnative")
+        if platform == "win32" or platform == "cygwin":
+            style.theme_use("winnative")
 
         def fixed_map(option):
             # Returns the style map for 'option' with any styles starting with
