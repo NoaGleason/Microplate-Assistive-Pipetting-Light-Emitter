@@ -112,8 +112,14 @@ void loop() {
 }
 
 void ScanCallback(char* barcode, long mode){
+  clearDisplay();
   // First two characters are always "MT" so we skip them
   unsigned long code = atoi(&barcode[2]);
+  bool even = code % 2 == 0;
+  //If it's an even barcode, subtract 1 to get the equivalent odd code
+  if (even){
+    code--;
+  }
   //Read into the shorter byte array, big-endian style
   for (int i = BARCODE_BYTES - 1; i >= 0; i--){
     searchKey[i] = (code >> 8*(BARCODE_BYTES - 1 - i)) & 0xFF;
@@ -125,9 +131,14 @@ void ScanCallback(char* barcode, long mode){
   }
 
   while(memcmp(barcodes[index], searchKey, BARCODE_BYTES) == 0){
-    leds[wells[index]] = onColor;
+    if (even){
+      leds[NUM_PIXELS - 1 - wells[index]] = onColor;
+    } else {
+      leds[wells[index]] = onColor;
+    }
     index++;
   }
+  updateDisplay();
 }
 
 
