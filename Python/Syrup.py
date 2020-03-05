@@ -29,6 +29,10 @@ def light_well(well_name):
     SerialUtils.send_serial_command(panel, "well_on", well_name=well_name)
 
 
+def set_brightness(brightness: int):
+    SerialUtils.send_serial_command(panel, "set_brightness", brightness=brightness)
+
+
 def update_panel():
     SerialUtils.update_panels([panel])
 
@@ -52,10 +56,16 @@ class SyrupGUI(Frame):
         self.fileName = ""
         self.compoundRequests = []
         self.compoundRequestIds = {}
+        self.scannerMode = IntVar()
+        self.scannerMode.set(1)
+        self.searchText = StringVar()
+        self.searchText.set("")
+        self.brightness = IntVar()
+        self.brightness.set(50)
 
         self.done_color = "#C3C3C3"
         self.fail_color = "#FF8888"
-        self.search_color = "#000000"
+        self.search_color = "#FFFFFF"
 
         self.master = master
         self.master.title("Simple YTE1005 Reader and Updater for Plates v0.1")
@@ -98,9 +108,25 @@ class SyrupGUI(Frame):
 
         self.tree.tag_configure("done", background=self.done_color)
 
+        # Ridiculous workaround thanks to https://stackoverflow.com/a/17639955
+        estyle = ttk.Style()
+        estyle.element_create("plain.field", "from", "arc")
+        estyle.layout("EntryStyle.TEntry",
+                      [('Entry.plain.field', {'children': [(
+                          'Entry.background', {'children': [(
+                              'Entry.padding', {'children': [(
+                                  'Entry.textarea', {'sticky': 'nswe'})],
+                                  'sticky': 'nswe'})], 'sticky': 'nswe'})],
+                          'border': '1', 'sticky': 'nswe'})])
+
         # create the widgets for the top frame
         self.searchLabel = ttk.Label(top_frame, text="Search: ", takefocus=0)
-        self.searchBar = ttk.Entry(top_frame, width="20", style="Search.TEntry")
+        self.searchBar = ttk.Entry(top_frame, width="20", style="EntryStyle.TEntry", textvariable=self.searchText)
+        self.scannerCheckbutton = ttk.Checkbutton(top_frame, text="Scanner Mode", takefocus=0,
+                                                  variable=self.scannerMode, onvalue=1, offvalue=0)
+        self.brightnessLabel = ttk.Label(top_frame, text="Brightness: ", takefocus=0)
+        self.brightnessSlider = ttk.Scale(top_frame, orient=HORIZONTAL, takefocus=0, from_=0, to=255,
+                                          variable=self.brightness, command=lambda _: self.set_brightness())
         self.backButton = ttk.Button(top_frame, text="Previous plate", command=self.previous_plate, takefocus=0)
         self.nextButton = ttk.Button(top_frame, text="Plate complete", command=self.next_plate, takefocus=0)
 
@@ -108,8 +134,11 @@ class SyrupGUI(Frame):
         top_frame.grid_columnconfigure(2, weight=3)
         self.searchLabel.grid(row=0, column=1, sticky="e")
         self.searchBar.grid(row=0, column=2, sticky="w")
-        self.backButton.grid(row=0, column=4)
-        self.nextButton.grid(row=0, column=5)
+        self.brightnessLabel.grid(row=0, column=3, sticky="e")
+        self.brightnessSlider.grid(row=0, column=4, sticky="w")
+        self.scannerCheckbutton.grid(row=0, column=5)
+        self.backButton.grid(row=0, column=6)
+        self.nextButton.grid(row=0, column=7)
         self.open_file()
 
         # create key shortcuts
@@ -121,6 +150,8 @@ class SyrupGUI(Frame):
         self.tree.bind("<Down>", lambda e: self.next_plate())
         self.tree.bind("<Button-1>", self.goto_selection)
         self.tree.focus_force()
+
+        self.set_brightness()
 
     def next_plate(self):
         old_plate = self.compoundRequests[self.currentPlatePosition].location
@@ -137,7 +168,7 @@ class SyrupGUI(Frame):
         self.parse_commands()
 
     def goto_barcode(self):
-        barcode = self.searchBar.get()
+        barcode = self.searchText.get()
         # If an even code is scanned, use the corresponding odd code instead
         try:
             bar_num = int(barcode[2:])
@@ -152,10 +183,17 @@ class SyrupGUI(Frame):
         self.currentPlatePosition = next((i for i, v in enumerate(self.compoundRequests) if v.location.barcode ==
                                           barcode), self.currentPlatePosition)
         if self.currentPlatePosition == prev_plate_pos:
-            ttk.Style().configure("Search.TEntry", foreground=self.fail_color)
+            ttk.Style().configure("EntryStyle.TEntry", background=self.fail_color)
+            ttk.Style().configure("EntryStyle.TEntry", fieldbackground=self.fail_color)
+            if self.scannerMode.get():
+                self.searchText.set("")
         else:
-            ttk.Style().configure("Search.TEntry", foreground=self.search_color)
-            self.tree.focus_set()
+            ttk.Style().configure("EntryStyle.TEntry", background=self.search_color)
+            ttk.Style().configure("EntryStyle.TEntry", fieldbackground=self.search_color)
+            if self.scannerMode.get():
+                self.searchText.set("")
+            else:
+                self.tree.focus_set()
             self.parse_commands()
 
     def goto_selection(self, e):
@@ -169,6 +207,10 @@ class SyrupGUI(Frame):
         while self.currentPlatePosition > 0 and \
                 self.compoundRequests[self.currentPlatePosition - 1].location.same_plate(plate):
             self.currentPlatePosition -= 1
+
+    def set_brightness(self):
+        set_brightness(max(self.brightness.get(), 1))
+        update_panel()
 
     def open_file(self):
         self.fileName = askopenfilename()  # show an open file dialog box and return the path to the selected file

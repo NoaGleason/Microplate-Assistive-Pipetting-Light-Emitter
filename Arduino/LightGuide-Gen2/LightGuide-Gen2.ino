@@ -15,6 +15,8 @@
 
 #define NUM_CHARS 2 //determines the number of characters for the lists: receivedCharArray,tempStorage, rowLetter, and illuminationCommand
 
+#define NUM_BRIGHTNESS_COMMANDS 1
+
 //Uncomment this line to use the LCD code.
 //#define HAVE_LCD
 
@@ -28,6 +30,9 @@ byte receivedByteArray[NUM_CHARS]; // Stores the byte input received from the us
 int rowNumber;  //used to store the usable-index-number-value obtained with targetIndex, so that targetIndex can be reset to -1 so the convertRowLetterToNumber() keeps working
 int columnNumber; //Stores a single number, that is later used to determine the target column that the user wants to light-up
 int illuminationCommand; //Stores a number, that is later used to determine whether the user wants to light-up a row, a column, or a single bulb
+int brightness; //Stores a single number, that is later used to determine the brightness that the user wants to change
+
+byte BRIGHTNESS_COMMANDS[] = {8};
 
 size_t bytesRead;
 
@@ -71,6 +76,11 @@ void loop() {
 void parseTwoByte() {
   //Most significant 7 bits are command
   illuminationCommand = receivedByteArray[0] >> 1;
+  for (int i = 0; i < NUM_BRIGHTNESS_COMMANDS; i++){
+    if (BRIGHTNESS_COMMANDS[i] == illuminationCommand) {
+      brightness = receivedByteArray[1];
+    }
+  }
   //Next 5 bits, split across 2 bytes, are column
   columnNumber = (receivedByteArray[0] & 1) << 4 | receivedByteArray[1] >> 4;
   //Least significant 4 bits are row
@@ -112,6 +122,16 @@ void setWellFancy(int row, int column, CRGB wellColor, CRGB lineColor) {
   setLED(row, column, wellColor);
 }
 
+void updateBrightness(int brightness){
+  onColor = CRGB(brightness, brightness, brightness / 2);
+  //Update all on pixels w/ new color.
+  for(int x=0;x<NUM_PIXELS;x++) {
+    if (leds[x] != offColor){
+    leds[x] = onColor;
+    }
+  }
+}
+
 /* Determine which illumination command has been received and call the corresponding illumination function */ 
 void parseIlluminationCommand(int illuminationCommand){
   switch (illuminationCommand){
@@ -147,6 +167,10 @@ void parseIlluminationCommand(int illuminationCommand){
     /* Update display */
     case 7:
       updateDisplay();
+      break;
+    /* Update brightness */
+    case 8:
+      updateBrightness(brightness);
       break;
     default:
       Serial.println(F("ERROR Appropriate value not received."));
