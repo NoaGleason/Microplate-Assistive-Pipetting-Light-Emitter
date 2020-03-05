@@ -1,4 +1,3 @@
-# TODO come up with a dumb backronym for SYRUP
 import tkinter.font as tkFont
 import tkinter.ttk as ttk
 from operator import attrgetter
@@ -59,7 +58,7 @@ class SyrupGUI(Frame):
         self.search_color = "#000000"
 
         self.master = master
-        self.master.title("SYRUP v0.1")
+        self.master.title("Simple YTE1005 Reader and Updater for Plates v0.1")
         self.master.minsize(500, 500)
 
         # Set styles
