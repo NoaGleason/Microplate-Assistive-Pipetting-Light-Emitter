@@ -1,0 +1,3 @@
+[submodule "Arduino/e1007"]
+	path = Arduino/e1007
+	url = git@github.com:serovsergey/e1007.git
