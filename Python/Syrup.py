@@ -3,7 +3,7 @@ import tkinter.font as tkFont
 import tkinter.ttk as ttk
 from operator import attrgetter
 from tkinter import *
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename, asksaveasfilename
 
 import serial
 from ttkthemes import ThemedTk
@@ -54,6 +54,8 @@ class SyrupGUI(Frame):
         self.compoundRequests = []
         self.compoundRequestIds = {}
 
+        self.plate_columns = 12
+
         self.done_color = "#C3C3C3"
         self.fail_color = "#FF8888"
         self.search_color = "#000000"
@@ -102,6 +104,7 @@ class SyrupGUI(Frame):
         # create the widgets for the top frame
         self.searchLabel = ttk.Label(top_frame, text="Search: ", takefocus=0)
         self.searchBar = ttk.Entry(top_frame, width="20", style="Search.TEntry")
+        self.exportButton = ttk.Button(top_frame, text="Export", command=self.export_to_syrup, takefocus=0)
         self.backButton = ttk.Button(top_frame, text="Previous plate", command=self.previous_plate, takefocus=0)
         self.nextButton = ttk.Button(top_frame, text="Plate complete", command=self.next_plate, takefocus=0)
 
@@ -109,8 +112,9 @@ class SyrupGUI(Frame):
         top_frame.grid_columnconfigure(2, weight=3)
         self.searchLabel.grid(row=0, column=1, sticky="e")
         self.searchBar.grid(row=0, column=2, sticky="w")
-        self.backButton.grid(row=0, column=4)
-        self.nextButton.grid(row=0, column=5)
+        self.exportButton.grid(row=0, column=4)
+        self.backButton.grid(row=0, column=5)
+        self.nextButton.grid(row=0, column=6)
         self.open_file()
 
         # create key shortcuts
@@ -164,7 +168,8 @@ class SyrupGUI(Frame):
             self.currentPlatePosition -= 1
 
     def open_file(self):
-        self.fileName = askopenfilename()  # show an open file dialog box and return the path to the selected file
+        # show an open file dialog box and return the path to the selected file
+        self.fileName = askopenfilename(filetypes=(("csv files", "*.csv"), ("all files", "*.*")))
         self.compoundRequests = []
         self.currentPlatePosition = 0
         with open(self.fileName, "r") as csv_file:
@@ -183,6 +188,23 @@ class SyrupGUI(Frame):
                 if self.tree.column(COLUMNS[ix], width=None) < col_w:
                     self.tree.column(COLUMNS[ix], width=col_w)
         self.parse_commands()
+
+    def export_to_syrup(self):
+        out_file_name = asksaveasfilename(defaultextension=".syrup", initialfile="location",
+                                          filetypes=(("SYRUP files", "*.syrup"), ("all files", "*.*")))
+        barcode_wells = []
+        for compoundRequest in self.compoundRequests:
+            if compoundRequest.location.barcode is not None and compoundRequest.location.well is not None:
+                barcode_wells.append((compoundRequest.location.barcode, compoundRequest.location.well))
+        barcode_wells.sort()
+        with open(out_file_name, "wb") as out_file:
+            for barcode, well in barcode_wells:
+                barcode_bytes = int(barcode[2:]).to_bytes(3, byteorder="big")
+                well_col = int(SerialUtils.get_column_number_from_well(well)) - 1
+                well_row = ord(SerialUtils.get_row_name_from_well(well).upper()) - ord("A")
+                well_bytes = (self.plate_columns*well_row + well_col).to_bytes(1, byteorder="big")
+                out_file.write(barcode_bytes)
+                out_file.write(well_bytes)
 
     def parse_commands(self, scroll=True):
         # get the current source and destination wells, then send them to the send_serial_command for LEDs to be lit
