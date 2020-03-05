@@ -138,6 +138,14 @@ class SyrupGUI(Frame):
 
     def goto_barcode(self):
         barcode = self.searchBar.get()
+        # If an even code is scanned, use the corresponding odd code instead
+        try:
+            bar_num = int(barcode[2:])
+            if bar_num % 2 == 0:
+                barcode = "{}{:06}".format(barcode[:2], bar_num - 1)
+        except ValueError as e:
+            # If int formatting fails
+            pass
         # Fancy oneline to find the first element of the array that matches the condition, or self.currentPlatePosition
         # if no match is found.
         prev_plate_pos = self.currentPlatePosition
