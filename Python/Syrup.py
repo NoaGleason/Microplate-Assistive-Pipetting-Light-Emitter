@@ -126,7 +126,7 @@ class SyrupGUI(Frame):
                                                   variable=self.scannerMode, onvalue=1, offvalue=0)
         self.brightnessLabel = ttk.Label(top_frame, text="Brightness: ", takefocus=0)
         self.brightnessSlider = ttk.Scale(top_frame, orient=HORIZONTAL, takefocus=0, from_=0, to=255,
-                                          variable=self.brightness, command=lambda _: self.set_brightness())
+                                          variable=self.brightness, command=self.set_brightness)
         self.backButton = ttk.Button(top_frame, text="Previous plate", command=self.previous_plate, takefocus=0)
         self.nextButton = ttk.Button(top_frame, text="Plate complete", command=self.next_plate, takefocus=0)
 
@@ -151,7 +151,7 @@ class SyrupGUI(Frame):
         self.tree.bind("<Button-1>", self.goto_selection)
         self.tree.focus_force()
 
-        self.set_brightness()
+        self.set_brightness("50")
 
     def next_plate(self):
         old_plate = self.compoundRequests[self.currentPlatePosition].location
@@ -208,8 +208,8 @@ class SyrupGUI(Frame):
                 self.compoundRequests[self.currentPlatePosition - 1].location.same_plate(plate):
             self.currentPlatePosition -= 1
 
-    def set_brightness(self):
-        set_brightness(max(self.brightness.get(), 1))
+    def set_brightness(self, brightness: str):
+        set_brightness(max(int(float(brightness)), 1))
         update_panel()
 
     def open_file(self):
