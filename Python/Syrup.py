@@ -10,7 +10,7 @@ from ttkthemes import ThemedTk
 import SerialUtils
 from CompoundRequest import CompoundRequest
 
-DRY_RUN = False
+DRY_RUN = True
 COLUMNS = ["Request ID", "Available", "Scripps Barcode", "State", "Volume", "Concentration", "Weight", "Solvation",
            "Freezer", "Shelf", "Rack", "Section", "Subsection", "Plate Barcode", "Well"]
 
@@ -210,6 +210,8 @@ class SyrupGUI(Frame):
                 well_col = int(SerialUtils.get_column_number_from_well(well)) - 1
                 well_row = ord(SerialUtils.get_row_name_from_well(well).upper()) - ord("A")
                 well_bytes = (self.plate_columns*well_row + well_col).to_bytes(1, byteorder="big")
+                # print(barcode, well)
+                # print("{}, {}, {}, {}, ".format(barcode_bytes[0], barcode_bytes[1], barcode_bytes[2], well_bytes[0]))
                 out_file.write(barcode_bytes)
                 out_file.write(well_bytes)
 

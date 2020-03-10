@@ -50,6 +50,8 @@ byte barcodes[MAX_CODES][BARCODE_BYTES];
 byte wells[MAX_CODES];
 byte searchKey[BARCODE_BYTES];
 
+int numCodes;
+
 e1007 scanner(&Serial2, &ScanCallback, 9600);
 
 void setup() {
@@ -79,6 +81,7 @@ void setup() {
     locationFile.read(barcodes[i], BARCODE_BYTES);
     wells[i] = locationFile.read();
   }
+  numCodes = i+1;
   locationFile.close();
 
   if (!scanner.startScan()){
@@ -88,6 +91,7 @@ void setup() {
   
   illuminationTest(onColor);
   updateDisplay();
+//  ScanCallback("MT000437", 0);
 
 #ifdef HAVE_LCD
   // set up the LCD's number of rows and columns: 
@@ -130,7 +134,17 @@ void ScanCallback(char* barcode, long mode){
     return;
   }
 
-  while(memcmp(barcodes[index], searchKey, BARCODE_BYTES) == 0){
+  int upIndex = index - 1;
+  while (upIndex >= 0 && memcmp(barcodes[upIndex], searchKey, BARCODE_BYTES) == 0) {
+    if (even){
+      leds[NUM_PIXELS - 1 - wells[upIndex]] = onColor;
+    } else {
+      leds[wells[upIndex]] = onColor;
+    }
+    upIndex--;
+  }
+
+  while(index < numCodes && memcmp(barcodes[index], searchKey, BARCODE_BYTES) == 0){
     if (even){
       leds[NUM_PIXELS - 1 - wells[index]] = onColor;
     } else {
@@ -143,8 +157,8 @@ void ScanCallback(char* barcode, long mode){
 
 
 int binarySearch(byte* key){
-  size_t upper = MAX_CODES;
-  size_t mid = MAX_CODES/2;
+  size_t upper = numCodes;
+  size_t mid = numCodes/2;
   size_t lower = 0;
   while(lower < upper){
     int comparison = memcmp(barcodes[mid], key, BARCODE_BYTES);
