@@ -2,6 +2,7 @@ import tkinter.font as tkFont
 import tkinter.ttk as ttk
 from operator import attrgetter
 from tkinter import *
+from tkinter import messagebox
 from tkinter.filedialog import askopenfilename
 
 import serial
@@ -14,6 +15,15 @@ DRY_RUN = False
 COLUMNS = ["Request ID", "Available", "Scripps Barcode", "State", "Volume", "Concentration", "Weight", "Solvation",
            "Freezer", "Shelf", "Rack", "Section", "Subsection", "Plate Barcode", "Well"]
 
+
+panel = None
+
+
+def connect_to_panel():
+    global panel
+    panel = serial.Serial(COMPortOne, baudrate=38400, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE)
+
+
 with open("config.txt", "r") as file:
     serialPorts = file.readlines()
     COMPortOne = serialPorts[0].strip()
@@ -21,24 +31,28 @@ with open("config.txt", "r") as file:
         panel = None
         print("Setting up panel on port " + COMPortOne)
     else:
-        panel = serial.Serial(COMPortOne, baudrate=38400, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE)
+        try:
+            connect_to_panel()
+        except serial.serialutil.SerialException:
+            messagebox.showerror("Connection Error", "Couldn't find Arduino on port "+COMPortOne)
+            exit(-1)
         print("Serial connected")
 
 
 def light_well(well_name):
-    SerialUtils.send_serial_command(panel, "well_on", well_name=well_name)
+    return SerialUtils.send_serial_command(panel, "well_on", well_name=well_name)
 
 
 def set_brightness(brightness: int):
-    SerialUtils.send_serial_command(panel, "set_brightness", brightness=brightness)
+    return SerialUtils.send_serial_command(panel, "set_brightness", brightness=brightness)
 
 
 def update_panel():
-    SerialUtils.update_panels([panel])
+    return SerialUtils.update_panels([panel])[0]
 
 
 def clear_panel():
-    SerialUtils.clear_panels([panel])
+    return SerialUtils.clear_panels([panel])[0]
 
 
 def on_closing():
@@ -53,6 +67,7 @@ class SyrupGUI(Frame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         self.currentPlatePosition = 0
+        self.lastRequestSucceeded = True
         self.fileName = ""
         self.compoundRequests = []
         self.compoundRequestIds = {}
@@ -151,14 +166,15 @@ class SyrupGUI(Frame):
         self.tree.bind("<Button-1>", self.goto_selection)
         self.tree.focus_force()
 
-        self.set_brightness("50")
+        self.set_brightness(str(self.brightness.get()))
 
     def next_plate(self):
-        old_plate = self.compoundRequests[self.currentPlatePosition].location
-        while self.currentPlatePosition < len(self.compoundRequests) - 1 and \
-                self.compoundRequests[self.currentPlatePosition].location.same_plate(old_plate):
-            self.tree.item(self.compoundRequestIds[self.compoundRequests[self.currentPlatePosition]], tags=("done",))
-            self.currentPlatePosition += 1
+        if self.lastRequestSucceeded:
+            old_plate = self.compoundRequests[self.currentPlatePosition].location
+            while self.currentPlatePosition < len(self.compoundRequests) - 1 and \
+                    self.compoundRequests[self.currentPlatePosition].location.same_plate(old_plate):
+                self.tree.item(self.compoundRequestIds[self.compoundRequests[self.currentPlatePosition]], tags=("done",))
+                self.currentPlatePosition += 1
         self.parse_commands()
 
     def previous_plate(self):
@@ -174,7 +190,7 @@ class SyrupGUI(Frame):
             bar_num = int(barcode[2:])
             if bar_num % 2 == 0:
                 barcode = "{}{:06}".format(barcode[:2], bar_num - 1)
-        except ValueError as e:
+        except ValueError:
             # If int formatting fails
             pass
         # Fancy oneline to find the first element of the array that matches the condition, or self.currentPlatePosition
@@ -209,8 +225,8 @@ class SyrupGUI(Frame):
             self.currentPlatePosition -= 1
 
     def set_brightness(self, brightness: str):
-        set_brightness(max(int(float(brightness)), 1))
-        update_panel()
+        if not (set_brightness(max(int(float(brightness)), 1)) and update_panel()):
+            self.error_popup()
 
     def open_file(self):
         self.fileName = askopenfilename()  # show an open file dialog box and return the path to the selected file
@@ -235,19 +251,30 @@ class SyrupGUI(Frame):
 
     def parse_commands(self, scroll=True):
         # get the current source and destination wells, then send them to the send_serial_command for LEDs to be lit
-        clear_panel()
+        self.lastRequestSucceeded = clear_panel()
         index = 0
         plate = self.compoundRequests[self.currentPlatePosition].location
         selections = []
         while self.currentPlatePosition + index < len(self.compoundRequests) and \
                 self.compoundRequests[self.currentPlatePosition + index].location.same_plate(plate):
             selections.append(self.compoundRequestIds[self.compoundRequests[self.currentPlatePosition + index]])
-            light_well(self.compoundRequests[self.currentPlatePosition + index].location.well)
+            self.lastRequestSucceeded = self.lastRequestSucceeded and light_well(
+                self.compoundRequests[self.currentPlatePosition + index].location.well)
             index += 1
         self.tree.selection_set(selections)
         if scroll:
             self.tree.yview_moveto((self.currentPlatePosition - 1) / len(self.compoundRequests))
-        update_panel()
+        self.lastRequestSucceeded = self.lastRequestSucceeded and update_panel()
+        if not self.lastRequestSucceeded:
+            self.error_popup()
+
+    def error_popup(self):
+        messagebox.showerror("Communication Error", "Check that the Arduino is plugged firmly into the computer.")
+        # Attempt to reconnect to the panel
+        try:
+            connect_to_panel()
+        except serial.serialutil.SerialException:
+            return
 
 
 if __name__ == '__main__':

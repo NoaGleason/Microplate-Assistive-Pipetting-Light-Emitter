@@ -8,15 +8,16 @@ COMMAND_CODES = {"clear": 0x00, "well_on": 0x01, "well_off": 0x02, "column_on": 
 
 def write_or_print(bytestring: bytes, serial_connection: serial.Serial):
     if serial_connection:
-        serial_connection.write(bytestring)
-        recv = serial_connection.read(2)
+        try:
+            serial_connection.write(bytestring)
+            recv = serial_connection.read(2)
+        except serial.SerialException:
+            return False
         if recv != bytestring:
-            print("ERROR!")
-            print("tx: {:08b} {:08b}".format(bytestring[0], bytestring[1]))
-            print("rx: {:08b} {:08b}".format(recv[0], recv[1]))
-            raise ConnectionError("Communication error between user and Arduino!")
+            return False
     else:
         print("Sending bytestring {:08b} {:08b}".format(bytestring[0], bytestring[1]))
+    return True
 
 
 def get_row_name_from_well(well: str):
@@ -54,19 +55,23 @@ def send_serial_command(serial_connection: serial.Serial, command: str, well_nam
         if not column:
             column = get_column_number_from_well(well_name)
         serial_string = make_positional_bitstring(row, int(column), command)
-    write_or_print(serial_string, serial_connection)
+    return write_or_print(serial_string, serial_connection)
 
 
 def clear_panels(panels: List[serial.Serial]):
+    results = []
     serial_string = make_positional_bitstring("a", 1, "clear")
     for serial_connection in panels:
-        write_or_print(serial_string, serial_connection)
+        results.append(write_or_print(serial_string, serial_connection))
+    return results
 
 
 def update_panels(panels: List[serial.Serial]):
+    results = []
     serial_string = make_positional_bitstring("a", 1, "update")
     for serial_connection in panels:
-        write_or_print(serial_string, serial_connection)
+        results.append(write_or_print(serial_string, serial_connection))
+    return results
 
 
 def close_connection(panels: List[serial.Serial]):
