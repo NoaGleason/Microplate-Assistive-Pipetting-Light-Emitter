@@ -20,7 +20,7 @@
 //Uncomment this line to use the LCD code.
 //#define HAVE_LCD
 
-CRGB onColor = CRGB(5,5,3);
+CRGB onColor = CRGB(10,0,0);
 CRGB offColor = CRGB::Black;
 CRGB highlightColor = CRGB(2, 2, 0);
 
@@ -123,7 +123,7 @@ void setWellFancy(int row, int column, CRGB wellColor, CRGB lineColor) {
 }
 
 void updateBrightness(int brightness){
-  onColor = CRGB(brightness, brightness, brightness / 2);
+  onColor = CRGB(brightness, 0, 0);
   //Update all on pixels w/ new color.
   for(int x=0;x<NUM_PIXELS;x++) {
     if (leds[x] != offColor){

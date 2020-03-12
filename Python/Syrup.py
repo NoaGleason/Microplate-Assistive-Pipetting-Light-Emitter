@@ -14,6 +14,7 @@ from CompoundRequest import CompoundRequest
 DRY_RUN = False
 COLUMNS = ["Request ID", "Available", "Scripps Barcode", "State", "Volume", "Concentration", "Weight", "Solvation",
            "Freezer", "Shelf", "Rack", "Section", "Subsection", "Plate Barcode", "Well"]
+NUMERIC_BARCODE_REGEX = re.compile(r'(.*\D+)(\d*)$')
 
 
 panel = None
@@ -164,7 +165,7 @@ class SyrupGUI(Frame):
         self.tree.bind("<Up>", lambda e: self.previous_plate())
         self.tree.bind("<Down>", lambda e: self.next_plate())
         self.tree.bind("<Button-1>", self.goto_selection)
-        self.tree.focus_force()
+        self.searchBar.focus_force()
 
         self.set_brightness(str(self.brightness.get()))
 
@@ -187,9 +188,10 @@ class SyrupGUI(Frame):
         barcode = self.searchText.get()
         # If an even code is scanned, use the corresponding odd code instead
         try:
-            bar_num = int(barcode[2:])
+            regex_search = NUMERIC_BARCODE_REGEX.search(barcode)
+            bar_num = int(regex_search.group(2))
             if bar_num % 2 == 0:
-                barcode = "{}{:06}".format(barcode[:2], bar_num - 1)
+                barcode = ("{}{:0"+str(len(regex_search.group(2)))+"}").format(regex_search.group(1), bar_num - 1)
         except ValueError:
             # If int formatting fails
             pass
