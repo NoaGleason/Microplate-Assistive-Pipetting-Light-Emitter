@@ -5,17 +5,20 @@ from tkinter import *
 from tkinter import messagebox
 from tkinter.filedialog import askopenfilename
 
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+from matplotlib.ticker import MultipleLocator
+
 import serial
 from ttkthemes import ThemedTk
 
 import SerialUtils
 from CompoundRequest import CompoundRequest
 
-DRY_RUN = False
+DRY_RUN = True
 COLUMNS = ["Request ID", "Available", "Scripps Barcode", "State", "Volume", "Concentration", "Weight", "Solvation",
            "Freezer", "Shelf", "Rack", "Section", "Subsection", "Plate Barcode", "Well"]
 NUMERIC_BARCODE_REGEX = re.compile(r'(.*\D+)(\d*)$')
-
 
 panel = None
 
@@ -35,7 +38,7 @@ with open("config.txt", "r") as file:
         try:
             connect_to_panel()
         except serial.serialutil.SerialException:
-            messagebox.showerror("Connection Error", "Couldn't find Arduino on port "+COMPortOne)
+            messagebox.showerror("Connection Error", "Couldn't find Arduino on port " + COMPortOne)
             exit(-1)
         print("Serial connected")
 
@@ -103,26 +106,43 @@ class SyrupGUI(Frame):
         self.master.grid_columnconfigure(0, weight=1)
         top_frame.grid(row=0, sticky="ew")
 
-        # Create container for table
-        center = ttk.Frame(self.master)
-        center.grid(row=1, sticky="nsew")
+        # Create a container for the main content
+        self.main_content = ttk.Notebook(self.master)
+        self.main_content.enable_traversal()
+        self.main_content.grid(row=1, sticky="nsew")
 
-        self.tree = ttk.Treeview(columns=COLUMNS, show="headings", style="Treeview")
+        # Create container for table
+        table_frame = ttk.Frame()
+        self.main_content.add(table_frame, sticky="nsew", text="Table", underline=0)
+
+        self.tree = ttk.Treeview(table_frame, columns=COLUMNS, show="headings", style="Treeview")
         vsb = ttk.Scrollbar(orient="vertical", command=self.tree.yview)
         hsb = ttk.Scrollbar(orient="horizontal", command=self.tree.xview)
         self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-        self.tree.grid(column=0, row=0, sticky='nsew', in_=center)
-        vsb.grid(column=1, row=0, sticky='ns', in_=center)
-        hsb.grid(column=0, row=1, sticky='ew', in_=center)
+        self.tree.grid(column=0, row=0, sticky='nsew', in_=table_frame)
+        vsb.grid(column=1, row=0, sticky='ns', in_=table_frame)
+        hsb.grid(column=0, row=1, sticky='ew', in_=table_frame)
 
-        center.grid_columnconfigure(0, weight=1)
-        center.grid_rowconfigure(0, weight=1)
+        table_frame.grid_columnconfigure(0, weight=1)
+        table_frame.grid_rowconfigure(0, weight=1)
 
         for column in COLUMNS:
             self.tree.heading(column, text=column.title())
             self.tree.column(column, width=tkFont.Font().measure(column.title()))
 
         self.tree.tag_configure("done", background=self.done_color)
+
+        # Create container for diagram
+        canvas_frame = ttk.Frame()
+        self.main_content.add(canvas_frame, sticky="nsew", text="Diagram", underline=0)
+
+        fig = Figure(figsize=(4, 3), dpi=100)
+        fig.set_tight_layout({"pad": 1})
+        self.plot = fig.add_subplot(111)
+        self.canvas = FigureCanvasTkAgg(fig, master=canvas_frame)  # A tk.DrawingArea.
+
+        # Put main container items in main container
+        self.canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=True)
 
         # Ridiculous workaround thanks to https://stackoverflow.com/a/17639955
         estyle = ttk.Style()
@@ -164,6 +184,10 @@ class SyrupGUI(Frame):
         self.tree.bind("<Right>", lambda e: self.next_plate())
         self.tree.bind("<Up>", lambda e: self.previous_plate())
         self.tree.bind("<Down>", lambda e: self.next_plate())
+        self.canvas.get_tk_widget().bind("<Left>", lambda e: self.previous_plate())
+        self.canvas.get_tk_widget().bind("<Right>", lambda e: self.next_plate())
+        self.canvas.get_tk_widget().bind("<Up>", lambda e: self.previous_plate())
+        self.canvas.get_tk_widget().bind("<Down>", lambda e: self.next_plate())
         self.tree.bind("<Button-1>", self.goto_selection)
         self.searchBar.focus_force()
 
@@ -174,7 +198,8 @@ class SyrupGUI(Frame):
             old_plate = self.compoundRequests[self.currentPlatePosition].location
             while self.currentPlatePosition < len(self.compoundRequests) - 1 and \
                     self.compoundRequests[self.currentPlatePosition].location.same_plate(old_plate):
-                self.tree.item(self.compoundRequestIds[self.compoundRequests[self.currentPlatePosition]], tags=("done",))
+                self.tree.item(self.compoundRequestIds[self.compoundRequests[self.currentPlatePosition]],
+                               tags=("done",))
                 self.currentPlatePosition += 1
         self.parse_commands()
 
@@ -191,7 +216,7 @@ class SyrupGUI(Frame):
             regex_search = NUMERIC_BARCODE_REGEX.search(barcode)
             bar_num = int(regex_search.group(2))
             if bar_num % 2 == 0:
-                barcode = ("{}{:0"+str(len(regex_search.group(2)))+"}").format(regex_search.group(1), bar_num - 1)
+                barcode = ("{}{:0" + str(len(regex_search.group(2))) + "}").format(regex_search.group(1), bar_num - 1)
         except ValueError:
             # If int formatting fails
             pass
@@ -257,12 +282,15 @@ class SyrupGUI(Frame):
         index = 0
         plate = self.compoundRequests[self.currentPlatePosition].location
         selections = []
+        self.refresh_well_plot()
         while self.currentPlatePosition + index < len(self.compoundRequests) and \
                 self.compoundRequests[self.currentPlatePosition + index].location.same_plate(plate):
             selections.append(self.compoundRequestIds[self.compoundRequests[self.currentPlatePosition + index]])
             self.lastRequestSucceeded = self.lastRequestSucceeded and light_well(
                 self.compoundRequests[self.currentPlatePosition + index].location.well)
+            self.plot_well(self.compoundRequests[self.currentPlatePosition + index].location.well)
             index += 1
+        self.canvas.draw()
         self.tree.selection_set(selections)
         if scroll:
             self.tree.yview_moveto((self.currentPlatePosition - 1) / len(self.compoundRequests))
@@ -277,6 +305,26 @@ class SyrupGUI(Frame):
             connect_to_panel()
         except serial.serialutil.SerialException:
             return
+
+    def plot_well(self, well):
+        self.plot.scatter(int(SerialUtils.get_column_number_from_well(well)),
+                          8 + ord("A") - ord(SerialUtils.get_row_name_from_well(well)), marker='x', s=200, c="red")
+
+    def refresh_well_plot(self):
+        self.plot.clear()
+        self.plot.set_xlim(0, 13)
+        self.plot.set_ylim(0, 9)
+        self.plot.set_aspect("equal")
+        minor_locator = MultipleLocator(1)
+        # Set minor tick locations.
+        self.plot.yaxis.set_minor_locator(minor_locator)
+        self.plot.xaxis.set_minor_locator(minor_locator)
+        # Set grid to use minor tick locations.
+        self.plot.grid(which="both")
+        self.plot.tick_params(which="both", bottom=False, top=True, left=True, right=False, labelbottom=False,
+                              labelleft=True, labeltop=True)
+        self.plot.set_yticklabels(["", "H", "G", "F", "E", "D", "C", "B", "A", ""])
+        self.canvas.draw()
 
 
 if __name__ == '__main__':
