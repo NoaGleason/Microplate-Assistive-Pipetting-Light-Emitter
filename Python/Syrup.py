@@ -15,7 +15,7 @@ from ttkthemes import ThemedTk
 import SerialUtils
 from CompoundRequest import CompoundRequest
 
-DRY_RUN = True
+DRY_RUN = False
 COLUMNS = ["Request ID", "Available", "Scripps Barcode", "State", "Volume", "Concentration", "Weight", "Solvation",
            "Freezer", "Shelf", "Rack", "Section", "Subsection", "Plate Barcode", "Well"]
 NUMERIC_BARCODE_REGEX = re.compile(r'(.*\D+)(\d*)$')
