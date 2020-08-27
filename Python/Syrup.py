@@ -25,7 +25,7 @@ panel = None
 
 def connect_to_panel():
     global panel
-    panel = serial.Serial(COMPortOne, baudrate=38400, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE)
+    panel = serial.Serial(COMPortOne, baudrate=38400, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1.5)
 
 
 with open("config.txt", "r") as file:
@@ -299,7 +299,8 @@ class SyrupGUI(Frame):
             self.error_popup()
 
     def error_popup(self):
-        messagebox.showerror("Communication Error", "Check that the Arduino is plugged firmly into the computer.")
+        messagebox.showerror("Communication Error", "Check that the Arduino is plugged firmly into the computer and is "
+                                                    "on COM port " + COMPortOne)
         # Attempt to reconnect to the panel
         try:
             connect_to_panel()

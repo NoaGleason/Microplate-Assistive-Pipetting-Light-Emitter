@@ -13,7 +13,7 @@ def write_or_print(bytestring: bytes, serial_connection: serial.Serial):
             recv = serial_connection.read(2)
         except serial.SerialException:
             return False
-        if recv != bytestring:
+        if recv is None or recv != bytestring:
             return False
     else:
         print("Sending bytestring {:08b} {:08b}".format(bytestring[0], bytestring[1]))
